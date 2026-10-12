@@ -83,7 +83,7 @@ mod tokio {
         let host_config = HostConfig::builder()
             .hostname("localhost")
             .protos(&[Version::HTTP_11])
-            .root_directory("..")
+            .root_directory(".")
             .tls(security_config)
             .bind_addresses(&[(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9100)])
             .build()?;
