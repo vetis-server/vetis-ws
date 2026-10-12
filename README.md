@@ -1,5 +1,7 @@
 # vetis-ws
 
+[![Crates.io downloads](https://img.shields.io/crates/d/vetis-ws)](https://crates.io/crates/vetis-ws) [![crates.io](https://img.shields.io/crates/v/vetis-ws?style=flat-square)](https://crates.io/crates/vetis-ws) [![Build Status](https://github.com/vetis-server/vetis-ws/actions/workflows/rust.yml/badge.svg?event=push)](https://github.com/vetis-server/vetis-ws/actions/workflows/rust.yml) ![Crates.io MSRV](https://img.shields.io/crates/msrv/vetis-ws) [![Documentation](https://docs.rs/vetis-ws/badge.svg)](https://docs.rs/vetis-ws/latest/vetis-ws) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/vetis-server/vetis-ws/blob/main/LICENSE.md)  [![codecov](https://codecov.io/gh/vetis-server/vetis-ws/graph/badge.svg?token=T0HSBAPVSI)](https://codecov.io/gh/vetis-server/vetis-ws)
+
 vetis-ws adds websockets support to your vetis server!
 
 ## Features
