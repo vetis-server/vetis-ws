@@ -1266,13 +1266,10 @@ version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "522000d3921e4b089de59204d2d3ca8792cd53f8ce5a54b5ac8b9a6e867259f0"
 dependencies = [
- "log",
  "logforth-append-file",
  "logforth-append-syslog",
  "logforth-bridge-log",
  "logforth-core",
- "logforth-filter-rustlog",
- "logforth-layout-json",
  "logforth-layout-text",
 ]
 
@@ -1313,28 +1310,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "400ba5305e0cb6819efa6c2c503020562eb5b47fd53c91c935be55af1ffd374e"
 dependencies = [
  "anyhow",
- "serde",
-]
-
-[[package]]
-name = "logforth-filter-rustlog"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e8431cfa1d3eeca479c363651320a66c7003350528f678b30e8c1474fb0d802"
-dependencies = [
- "logforth-core",
-]
-
-[[package]]
-name = "logforth-layout-json"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d86a105f8f32151ca1e0a6d4097d478badb02d5715239ba0fa431a188a5d966"
-dependencies = [
- "jiff",
- "logforth-core",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1879,9 +1854,9 @@ checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
 
 [[package]]
 name = "rustls"
-version = "0.23.45"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "aws-lc-rs",
  "hashbrown 0.15.5",
@@ -2506,14 +2481,12 @@ dependencies = [
 
 [[package]]
 name = "vetis-tokio"
-version = "0.1.2-beta.6"
+version = "0.1.2-beta.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d89c72b5ac7547a6c6f60b6ff2f020592b9a33a3482e2ddb6199787b44f819ec"
+checksum = "17bee39ee2d9e245979928376126bb2ebc087803cbbd5d7798c61976b65a9d83"
 dependencies = [
- "base64",
  "bytes",
  "crossfire",
- "futures-lite",
  "futures-rustls",
  "futures-util",
  "h3",
@@ -2525,21 +2498,13 @@ dependencies = [
  "hyper-body-utils",
  "hyper-util",
  "log",
- "logforth",
  "papaya",
- "patricia_tree",
  "peekable",
  "quinn",
  "rand",
- "regex",
  "rustls",
- "serde",
- "serde_yaml_ng",
- "thiserror",
- "time",
  "tokio",
  "tokio-rustls",
- "typetag",
  "vetis",
 ]
 
