@@ -439,7 +439,7 @@ dependencies = [
  "rand",
  "thiserror",
  "tokio",
- "ws-framer",
+ "ws-framer 0.3.2",
 ]
 
 [[package]]
@@ -2566,7 +2566,7 @@ dependencies = [
  "typetag",
  "vetis",
  "vetis-tokio",
- "ws-framer",
+ "ws-framer 0.4.0",
 ]
 
 [[package]]
@@ -2832,6 +2832,17 @@ dependencies = [
  "httparse",
  "itoa",
  "ws-framer-macros",
+]
+
+[[package]]
+name = "ws-framer"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dff96a9b275d0beb2ccdbca7faec38c4fb84fdab77a931867205338cd2466404"
+dependencies = [
+ "getrandom 0.4.3",
+ "httparse",
+ "itoa",
 ]
 
 [[package]]
