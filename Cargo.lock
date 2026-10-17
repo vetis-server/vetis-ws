@@ -340,25 +340,19 @@ dependencies = [
 
 [[package]]
 name = "deboa"
-version = "0.1.5-beta.3"
+version = "0.1.5-beta.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "695df99f6e8a191aa84884124d7bbcff1b65506e947234ac03d722578ba8742b"
+checksum = "bbd4900884b33396090a6f70406d81dd361fcfc15a840968172269f8aa9aa883"
 dependencies = [
- "async-fn-stream",
  "async-lock",
  "base64",
  "bytes",
- "cookie",
- "futures",
  "hashbrown 0.17.1",
  "http",
- "http-body",
  "http-body-util",
  "hyper",
  "hyper-body-utils",
- "hyper-util",
  "log",
- "rand",
  "regex",
  "serde",
  "tackle",
@@ -424,16 +418,14 @@ dependencies = [
 
 [[package]]
 name = "deboa-ws"
-version = "0.1.0-beta.4"
+version = "0.1.0-beta.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e23ae8a4383a101403c6ed5fef95567c658f4bb592b5af45fbe9bfcecc48f3c9"
+checksum = "66c79fa63e3e63ba3661dc5bd095ba3b6f66bbaa20005cca2de84d6bf450aa67"
 dependencies = [
  "base64",
  "deboa",
- "futures-util",
  "http",
  "hyper",
- "hyper-body-utils",
  "hyper-util",
  "pin-project-lite",
  "rand",
