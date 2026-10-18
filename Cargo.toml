@@ -24,33 +24,21 @@ hyper = { version = "1.10.1", default-features = false, features = [
     "http1",
     "server",
 ] }
-hyper-body-utils = { version = "0.1.18", default-features = false, features = [
-    "h3",
-] }
 hyper-util = { version = "0.1.21", default-features = false, features = [
     "server",
     "http1",
     "tokio",
 ] }
 log = { version = "0.4.34", features = ["serde_core"] }
-logforth = { version = "0.30.1", features = [
-    "append-syslog",
-    "append-file",
-    "bridge-log",
-    "layout-text",
-] }
 pin-project-lite = "0.2.17"
-rand = "0.10.3"
-serde = { version = "1.0.229", features = ["derive"] }
 tokio = { version = "1.53.1", optional = true }
-typetag = "0.2.21"
-vetis = { version = "0.1.7-beta.5" }
+vetis = { version = "0.1.7-beta.6" }
 ws-framer = "0.3.2"
 
 [dev-dependencies]
 caramelo = "0.1.5"
-deboa = { version = "0.1.5-beta.3" }
-deboa-tokio = { version = "0.1.4-beta.3", default-features = false, features = [
+deboa = { version = "0.1.5-beta.7" }
+deboa-tokio = { version = "0.1.4-beta.8", default-features = false, features = [
     "http2",
     "rust-tls",
     "default-rustls-provider",
@@ -59,4 +47,4 @@ deboa-tokio = { version = "0.1.4-beta.3", default-features = false, features = [
 deboa-ws = { version = "0.1.0-beta.4" }
 serde_yaml_ng = "0.10.0"
 tokio = { version = "1.53.1", default-features = false, features = ["macros"] }
-vetis-tokio = { version = "0.1.2-beta.6", features = ["rust-tls"] }
+vetis-tokio = { version = "0.1.2-beta.8", features = ["rust-tls"] }
