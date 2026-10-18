@@ -332,16 +332,14 @@ dependencies = [
 
 [[package]]
 name = "deboa-ws"
-version = "0.1.0-beta.4"
+version = "0.1.0-beta.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e23ae8a4383a101403c6ed5fef95567c658f4bb592b5af45fbe9bfcecc48f3c9"
+checksum = "66c79fa63e3e63ba3661dc5bd095ba3b6f66bbaa20005cca2de84d6bf450aa67"
 dependencies = [
  "base64",
  "deboa",
- "futures-util",
  "http",
  "hyper",
- "hyper-body-utils",
  "hyper-util",
  "pin-project-lite",
  "rand",
