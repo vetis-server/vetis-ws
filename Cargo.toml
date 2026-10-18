@@ -32,7 +32,7 @@ hyper-util = { version = "0.1.21", default-features = false, features = [
 pin-project-lite = "0.2.17"
 tokio = { version = "1.53.1", optional = true }
 vetis = { version = "0.1.7-beta.6" }
-ws-framer = "0.3.2"
+ws-framer = "0.4.0"
 
 [dev-dependencies]
 caramelo = "0.1.5"
