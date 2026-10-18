@@ -29,7 +29,6 @@ hyper-util = { version = "0.1.21", default-features = false, features = [
     "http1",
     "tokio",
 ] }
-log = { version = "0.4.34", features = ["serde_core"] }
 pin-project-lite = "0.2.17"
 tokio = { version = "1.53.1", optional = true }
 vetis = { version = "0.1.7-beta.6" }
