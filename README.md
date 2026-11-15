@@ -30,7 +30,15 @@ on vetis.
 #### Using API
 
 ```rust,ignore
-
+let config =  WebSocketHook::builder()
+        .matcher(PathMatcher::new(
+            PathMatcherConfig::builder()
+                .add_path("/ws*")
+                .build()?,
+        ))
+        .sub_proto(WebSocketProto::default())
+        .factory(ChatClientFactory::default())
+        .build()?;
 ```
 
 #### vetis.yaml
@@ -39,6 +47,7 @@ There's no plans to provide this kind of configuration method.
 
 #### Configuration Options
 
+- **matcher**: If set, this hook will be only called if request meet the criteria defined by him, otherwise, all requests will call this hook (optional)
 - **log_level**: Log level: TRACE, WARN, DEBUG, INFO, ERROR and FATAL
 
 ### Runtime Features
