@@ -10,20 +10,24 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["http", "modules", "websockets", "vetis"]
 publish = true
-rust-version = "1.85.0"
+rust-version = "1.86.0"
+
+[package.metadata.cargo-machete]
+ignored = ["cel", "hyper-body-utils"]
 
 [features]
 default = ["runtime-tokio"]
-
 runtime-tokio = ["dep:tokio"]
 
 [dependencies]
 base64 = "0.23.1"
+cel = "0.16.0"
 http = "1.5.0"
 hyper = { version = "1.10.1", default-features = false, features = [
     "http1",
     "server",
 ] }
+hyper-body-utils = { version = "0.1.18", default-features = false }
 hyper-util = { version = "0.1.21", default-features = false, features = [
     "server",
     "http1",
@@ -31,19 +35,24 @@ hyper-util = { version = "0.1.21", default-features = false, features = [
 ] }
 pin-project-lite = "0.2.17"
 tokio = { version = "1.53.1", optional = true }
-vetis = { version = "0.1.7-beta.6" }
+vetis = { path = "../vetis/vetis" }
 ws-framer = "0.4.0"
 
 [dev-dependencies]
 caramelo = "0.1.5"
-deboa = { version = "0.1.5-beta.7" }
-deboa-tokio = { version = "0.1.4-beta.8", default-features = false, features = [
+deboa = { version = "0.1.5" }
+deboa-tokio = { version = "0.1.4", default-features = false, features = [
     "http2",
     "rust-tls",
     "default-rustls-provider",
     "default-rustls-verifier",
 ] }
-deboa-ws = { version = "0.1.0-beta.5" }
+deboa-ws = { version = "0.1.0" }
 serde_yaml_ng = "0.10.0"
-tokio = { version = "1.54.0", default-features = false, features = ["macros"] }
-vetis-tokio = { version = "0.1.2-beta.8", features = ["rust-tls"] }
+tokio = { version = "1.54.1", default-features = false, features = ["macros"] }
+vetis-matchers = { path = "../vetis-matchers" }
+vetis-tokio = { path = "../vetis-tokio", features = ["rust-tls"] }
+
+# [patch.crates-io]
+# vetis = { path = "../vetis/vetis" }
+# vetis-tokio = { path = "../vetis-tokio" }
