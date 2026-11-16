@@ -13,11 +13,12 @@ mod tokio {
     use hyper_util::rt::TokioIo;
     use std::net::{IpAddr, Ipv4Addr};
     use vetis::{VetisServer, VetisTestResult, host::HostConfig, security::TlsConfig};
+    use vetis_matchers::request::{PathMatcher, PathMatcherConfig};
     use vetis_tokio::{Vetis, host::Host};
     use vetis_ws::{
         WebSocketClient,
         proto::websocket::WebSocketExt as _,
-        tokio::{WebSocketPath, io::websocket::WebSocketProto},
+        tokio::{WebSocketHook, io::websocket::WebSocketProto},
     };
 
     #[derive(Clone, Copy, Default)]
@@ -74,7 +75,7 @@ mod tokio {
 
     #[tokio::test]
     async fn test_index() -> VetisTestResult<()> {
-        let security_config = TlsConfig::builder()
+        let tls_config = TlsConfig::builder()
             .ca_file(CA_CERT)
             .cert_file(SERVER_CERT)
             .key_file(SERVER_KEY)
@@ -84,15 +85,19 @@ mod tokio {
             .hostname("localhost")
             .protos(&[Version::HTTP_11])
             .root_directory(".")
-            .tls(security_config)
+            .tls(tls_config)
             .bind_addresses(&[(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9100)])
             .build()?;
 
         let mut virtual_host = Host::new(host_config).await?;
 
-        virtual_host.add_path(
-            WebSocketPath::builder()
-                .uri("/chat")
+        virtual_host.add_hook(
+            WebSocketHook::builder()
+                .matcher(PathMatcher::new(
+                    PathMatcherConfig::builder()
+                        .add_path("/chat*")
+                        .build()?,
+                ))
                 .sub_proto(WebSocketProto::default())
                 .factory(ChatClientFactory::default())
                 .build()?,

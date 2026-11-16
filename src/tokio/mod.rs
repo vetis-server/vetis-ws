@@ -1,5 +1,6 @@
 use crate::{SubProtocol, WebSocket, WebSocketClient, WebSocketClientFactory};
 use base64::{Engine, engine::general_purpose::STANDARD};
+use cel::Context;
 use hyper::{
     Method, StatusCode,
     header::{self, CONNECTION, HeaderValue, SEC_WEBSOCKET_ACCEPT, UPGRADE},
@@ -7,9 +8,10 @@ use hyper::{
 };
 use hyper_util::rt::TokioIo;
 use vetis::{
-    Request, Response, Str, VetisFutureResult, error,
-    errors::{HandlerError, HostError, VetisError},
-    host::{HostContext, path::Path},
+    Request, Response, VetisFutureResult,
+    errors::{HostError, RuntimeError, VetisError},
+    hook::{Hook, HookPhase},
+    matcher::Matcher,
 };
 
 /// IO Module
@@ -19,28 +21,27 @@ const UPGRADE_WEBSOCKETS: &str = "websockets";
 const CONNECTION_UPGRADE: &str = "upgrade";
 
 /// Builder for handler path
-pub struct WebSocketPathBuilder<P, F> {
-    uri: Str,
+pub struct WebSocketHookBuilder<P, F> {
+    matcher: Option<Box<dyn Matcher>>,
     factory: F,
     sub_proto: P,
 }
 
-impl<P, F> WebSocketPathBuilder<P, F>
+impl<P, F> WebSocketHookBuilder<P, F>
 where
     P: SubProtocol,
     F: WebSocketClientFactory,
 {
-    /// Allow set handler uri path
-    ///
-    /// # Arguments
-    ///
-    /// * `uri` - The uri of the handler path
+    /// Allow set a matcher
     ///
     /// # Returns
     ///
-    /// * `Self` - The builder
-    pub fn uri(mut self, uri: &str) -> Self {
-        self.uri = Str::from(uri.to_string());
+    /// * `Self` - The builder.
+    pub fn matcher<M>(mut self, matcher: M) -> Self
+    where
+        M: Matcher + Send + Sync + 'static,
+    {
+        self.matcher = Some(Box::new(matcher));
         self
     }
 
@@ -76,26 +77,29 @@ where
     ///
     /// # Returns
     ///
-    /// * `Result<HandlerPath, VetisError>` - The handler path or error
-    pub fn build(self) -> Result<WebSocketPath<P, F>, VetisError> {
-        if self.uri.is_empty() {
-            return Err(VetisError::Host(HostError::Handler(HandlerError::Uri(
-                "URI cannot be empty".to_string(),
-            ))));
-        }
-
-        Ok(WebSocketPath { uri: self.uri.into(), factory: self.factory, sub_proto: self.sub_proto })
+    /// * `Result<HandlerHook, VetisError>` - The handler path or error
+    pub fn build(self) -> Result<WebSocketHook<P, F>, VetisError> {
+        Ok(WebSocketHook {
+            matcher: self
+                .matcher
+                .map_or(None, |val| Some(val)),
+            factory: self.factory,
+            sub_proto: self.sub_proto,
+        })
     }
 }
 
 /// WebSocket path
-pub struct WebSocketPath<P, F> {
-    uri: Str,
+pub struct WebSocketHook<P, F> {
+    matcher: Option<Box<dyn Matcher>>,
     factory: F,
     sub_proto: P,
 }
 
-impl<P, F> WebSocketPath<P, F>
+unsafe impl<P, F> Send for WebSocketHook<P, F> {}
+unsafe impl<P, F> Sync for WebSocketHook<P, F> {}
+
+impl<P, F> WebSocketHook<P, F>
 where
     P: SubProtocol + Default,
     F: WebSocketClientFactory + Default,
@@ -104,106 +108,120 @@ where
     ///
     /// # Returns
     ///
-    /// * `WebSocketPathBuilder` - The builder
-    pub fn builder() -> WebSocketPathBuilder<P, F> {
-        WebSocketPathBuilder {
-            uri: "/".into(),
+    /// * `WebSocketHookBuilder` - The builder
+    pub fn builder() -> WebSocketHookBuilder<P, F> {
+        WebSocketHookBuilder {
+            matcher: None,
             factory: F::default(),
             sub_proto: P::default().into(),
         }
     }
 }
 
-impl<P, F> Path for WebSocketPath<P, F>
+impl<P, F> Hook for WebSocketHook<P, F>
 where
     P: SubProtocol + Clone + Send + 'static,
     F: WebSocketClientFactory + Default,
     F::WebSocketClient:
         WebSocketClient<WebSocket = WebSocket<TokioIo<Upgraded>, P>> + Send + 'static,
 {
-    fn uri(&self) -> &str {
-        &self.uri
+    fn has_matches(&self, context: &Context) -> bool {
+        if let Some(matcher) = &self.matcher { matcher.is_match(context) } else { true }
+    }
+
+    fn phase(&self) -> &HookPhase {
+        &HookPhase::Access
+    }
+
+    fn matcher_mut(&mut self) -> Option<&mut Box<dyn Matcher>> {
+        self.matcher
+            .as_mut()
     }
 
     fn handle<'a>(
         &'a self,
         mut request: Request,
-        host_context: HostContext,
-    ) -> VetisFutureResult<'a, Response>
-    where
-        Self: Send,
-    {
-        let logger = host_context
-            .logger()
-            .clone();
+        _response: Option<Response>,
+    ) -> VetisFutureResult<'a, (Request, Option<Response>)> {
         let proto = self
             .sub_proto
             .clone();
 
-        let headers = request.headers();
-        let upgrade_header = headers.get(header::UPGRADE);
-        let version_header = headers.get(header::SEC_WEBSOCKET_VERSION);
-        let key_header = headers.get(header::SEC_WEBSOCKET_KEY);
-        if request.method() != Method::CONNECT
-            && let Some(upgrade_header) = upgrade_header
-            && let Ok(upgrade_type) = upgrade_header.to_str()
-            && upgrade_type != UPGRADE_WEBSOCKETS
-            && let Some(version_header) = version_header
-            && let Ok(websocket_version) = version_header.to_str()
-            && websocket_version != proto.version()
-            && let Some(key_header) = key_header
-            && let Ok(websocket_key) = key_header.to_str()
-            && websocket_key.is_empty()
-        {
-            let response = Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .empty();
-
-            return Box::pin(async move { Ok(response) });
-        }
-
-        // Safe to do because of above
-        let websocket_key = key_header
-            .expect("Missing websocket key header")
-            .to_str()
-            .expect("Invalid websocket key")
-            .to_string();
-
         let client = self
             .factory
             .create_client();
-        tokio::task::spawn(async move {
-            match hyper::upgrade::on(request.inner_mut()).await {
-                Ok(upgraded) => {
-                    client
-                        .run(WebSocket::new(TokioIo::new(upgraded), proto))
-                        .await
-                }
-                Err(e) => {
-                    error!(logger, "WebSocket connection error: {}", e.to_string());
-                    Err(VetisError::WebSocket(e.to_string()))
-                }
-            }
-        });
 
         let future = async move {
+            let headers = request.headers();
+            let upgrade_header = headers.get(header::UPGRADE);
+            let version_header = headers.get(header::SEC_WEBSOCKET_VERSION);
+            let key_header = headers.get(header::SEC_WEBSOCKET_KEY);
+            if request.method() != Method::CONNECT
+                && let Some(upgrade_header) = upgrade_header
+                && let Ok(upgrade_type) = upgrade_header.to_str()
+                && upgrade_type != UPGRADE_WEBSOCKETS
+                && let Some(version_header) = version_header
+                && let Ok(websocket_version) = version_header.to_str()
+                && websocket_version != proto.version()
+                && let Some(key_header) = key_header
+                && let Ok(websocket_key) = key_header.to_str()
+                && websocket_key.is_empty()
+            {
+                let response = Some(
+                    Response::builder()
+                        .status(StatusCode::BAD_REQUEST)
+                        .empty(),
+                );
+
+                return Ok((request, response));
+            }
+
+            // Safe to do because of above
+            let websocket_key = key_header
+                .expect("Missing websocket key header")
+                .to_str()
+                .expect("Invalid websocket key")
+                .to_string();
+
+            let (request_parts, request_body) = request.into_parts();
+            let mut websocket_request = Request::from_parts(request_parts.clone(), request_body);
+            tokio::task::spawn(async move {
+                match hyper::upgrade::on(websocket_request.inner_mut()).await {
+                    Ok(upgraded) => {
+                        client
+                            .run(WebSocket::new(TokioIo::new(upgraded), proto))
+                            .await
+                    }
+                    Err(e) => {
+                        Err(VetisError::Host(HostError::Runtime(RuntimeError::new(&e.to_string()))))
+                    }
+                }
+            });
+
             let accept_key =
                 STANDARD.encode(format!("{}258EAFA5-E914-47DA-95CA-C5AB0DC85B11", websocket_key));
 
-            let upgrade_websockets = HeaderValue::from_str(UPGRADE_WEBSOCKETS)
-                .map_err(|e| VetisError::WebSocket(e.to_string()))?;
-            let connection_upgrade = HeaderValue::from_str(CONNECTION_UPGRADE)
-                .map_err(|e| VetisError::WebSocket(e.to_string()))?;
-            let websocket_accept = HeaderValue::from_str(&accept_key)
-                .map_err(|e| VetisError::WebSocket(e.to_string()))?;
+            let upgrade_websockets = HeaderValue::from_str(UPGRADE_WEBSOCKETS).map_err(|e| {
+                VetisError::Host(HostError::Runtime(RuntimeError::new(&e.to_string())))
+            })?;
+            let connection_upgrade = HeaderValue::from_str(CONNECTION_UPGRADE).map_err(|e| {
+                VetisError::Host(HostError::Runtime(RuntimeError::new(&e.to_string())))
+            })?;
+            let websocket_accept = HeaderValue::from_str(&accept_key).map_err(|e| {
+                VetisError::Host(HostError::Runtime(RuntimeError::new(&e.to_string())))
+            })?;
 
-            let response = Response::builder()
-                .status(StatusCode::SWITCHING_PROTOCOLS)
-                .header(UPGRADE, upgrade_websockets)
-                .header(CONNECTION, connection_upgrade)
-                .header(SEC_WEBSOCKET_ACCEPT, websocket_accept)
-                .empty();
-            Ok(response)
+            request = Request::from_parts(request_parts, hyper_body_utils::HttpBody::empty());
+
+            let response = Some(
+                Response::builder()
+                    .status(StatusCode::SWITCHING_PROTOCOLS)
+                    .header(UPGRADE, upgrade_websockets)
+                    .header(CONNECTION, connection_upgrade)
+                    .header(SEC_WEBSOCKET_ACCEPT, websocket_accept)
+                    .empty(),
+            );
+            Ok((request, response))
         };
 
         Box::pin(future)

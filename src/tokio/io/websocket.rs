@@ -50,7 +50,7 @@ impl WebSocketRead for WebSocket<TokioIo<Upgraded>, WebSocketProto> {
             .read(rx_framer.read_buf())
             .await;
         if bytes_read.is_err() {
-            return Err(VetisError::WebSocket("Failed to read message".to_string()));
+            return Err(VetisError::Io("Failed to read message".into()));
         }
 
         let bytes_read = bytes_read.unwrap();
@@ -79,31 +79,33 @@ impl WebSocketWrite for WebSocket<TokioIo<Upgraded>, WebSocketProto> {
         let mut tx_framer = WsTxFramer::new(true, &mut tx_buf);
 
         let result = match message {
-            Message::Text(data) if let Some(bytes) =  tx_framer.frame(WsFrame::Text(&data)) => {
+            Message::Text(data) if let Some(bytes) = tx_framer.frame(WsFrame::Text(&data)) => {
                 self.write_all(bytes)
                     .await
             }
-            Message::Binary(data) if let Some(bytes) =  tx_framer.frame(WsFrame::Binary(&data)) => {
+            Message::Binary(data) if let Some(bytes) = tx_framer.frame(WsFrame::Binary(&data)) => {
                 self.write_all(bytes)
                     .await
             }
-            Message::Close(code, reason) if let Some(bytes) =  tx_framer.frame(WsFrame::Close(code, &reason)) => {
+            Message::Close(code, reason)
+                if let Some(bytes) = tx_framer.frame(WsFrame::Close(code, &reason)) =>
+            {
                 self.write_all(bytes)
                     .await
             }
-            Message::Ping(data) if let Some(bytes) =  tx_framer.frame(WsFrame::Ping(&data)) => {
+            Message::Ping(data) if let Some(bytes) = tx_framer.frame(WsFrame::Ping(&data)) => {
                 self.write_all(bytes)
                     .await
             }
-            Message::Pong(data) if let Some(bytes) =  tx_framer.frame(WsFrame::Pong(&data)) => {
+            Message::Pong(data) if let Some(bytes) = tx_framer.frame(WsFrame::Pong(&data)) => {
                 self.write_all(bytes)
                     .await
-            }            
+            }
             _ => Ok(()),
         };
 
         if result.is_err() {
-            return Err(VetisError::WebSocket("Failed to send frame".into()));
+            return Err(VetisError::Io("Failed to send frame".into()));
         }
 
         Ok(())
