@@ -30,15 +30,15 @@ on vetis.
 #### Using API
 
 ```rust,ignore
-let config =  WebSocketHook::builder()
-        .matcher(PathMatcher::new(
-            PathMatcherConfig::builder()
-                .add_path("/ws*")
-                .build()?,
-        ))
-        .sub_proto(WebSocketProto::default())
-        .factory(ChatClientFactory::default())
-        .build()?;
+WebSocketHook::builder()
+  .matcher(PathMatcher::new(
+      PathMatcherConfig::builder()
+          .add_path("/ws*")
+          .build()?,
+  ))
+  .sub_proto(WebSocketProto::default())
+  .factory(ChatClientFactory::default())
+  .build()?;
 ```
 
 #### vetis.yaml
