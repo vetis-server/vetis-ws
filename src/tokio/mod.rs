@@ -8,10 +8,9 @@ use hyper::{
 };
 use hyper_util::rt::TokioIo;
 use vetis::{
-    HookPhases, Request, Response, VetisFutureResult,
+    Request, Response, VetisFutureResult,
     errors::{HostError, RuntimeError, VetisError},
-    hook::{Hook, HookPhase},
-    make_bitflags,
+    hook::{Hook, HookPhase, HookPhases},
     matcher::Matcher,
 };
 
@@ -131,7 +130,7 @@ where
     }
 
     fn phases(&self) -> HookPhases {
-        make_bitflags!(HookPhase::Content)
+        HookPhases::new(HookPhase::Content)
     }
 
     fn matcher_mut(&mut self) -> Option<&mut Box<dyn Matcher>> {
