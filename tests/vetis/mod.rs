@@ -11,14 +11,14 @@ mod tokio {
     use http::Version;
     use hyper::upgrade::Upgraded;
     use hyper_util::rt::TokioIo;
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::net::Ipv4Addr;
     use vetis::{VetisServer, VetisTestResult, host::HostConfig, security::TlsConfig};
-    use vetis_matchers::request::{PathMatcher, PathMatcherConfig};
-    use vetis_tokio::{Vetis, host::Host};
+    use vetis_matchers::request::PathMatcherConfig;
+    use vetis_tokio::Vetis;
     use vetis_ws::{
         WebSocketClient,
         proto::websocket::WebSocketExt as _,
-        tokio::{WebSocketHook, io::websocket::WebSocketProto},
+        tokio::{HookConfig as WebSocketHookConfig, io::websocket::WebSocketProto},
     };
 
     #[derive(Clone, Copy, Default)]
@@ -57,6 +57,7 @@ mod tokio {
         }
     }
 
+    #[derive(Clone)]
     struct ChatClientFactory;
 
     impl Default for ChatClientFactory {
@@ -83,29 +84,25 @@ mod tokio {
 
         let host_config = HostConfig::builder()
             .hostname("localhost")
-            .protos(&[Version::HTTP_11])
             .root_directory(".")
             .tls(tls_config)
-            .bind_addresses(&[(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9100)])
+            .add_proto(Version::HTTP_11)
+            .add_bind_address(Ipv4Addr::UNSPECIFIED, 9100)
+            .add_hook(
+                WebSocketHookConfig::builder()
+                    .matcher(
+                        PathMatcherConfig::builder()
+                            .add_path("/chat*")
+                            .build()?,
+                    )
+                    .sub_proto(WebSocketProto::default())
+                    .factory(ChatClientFactory::default())
+                    .build()?,
+            )
             .build()?;
 
-        let mut virtual_host = Host::new(host_config).await?;
-
-        virtual_host.add_hook(
-            WebSocketHook::builder()
-                .matcher(PathMatcher::new(
-                    PathMatcherConfig::builder()
-                        .add_path("/chat*")
-                        .build()?,
-                ))
-                .sub_proto(WebSocketProto::default())
-                .factory(ChatClientFactory::default())
-                .build()?,
-        );
-
         let mut server = Vetis::builder()
-            .add_host(virtual_host)
-            .await?
+            .add_host(host_config)
             .build();
 
         server

@@ -7,11 +7,12 @@ use hyper::{
     upgrade::Upgraded,
 };
 use hyper_util::rt::TokioIo;
+use serde::{Deserialize, Serialize};
 use vetis::{
-    Request, Response, VetisFutureResult,
+    Request, Response, VetisFutureResult, VetisHook,
     errors::{HostError, RuntimeError, VetisError},
-    hook::{Hook, HookPhase, HookPhases},
-    matcher::Matcher,
+    hook::HookPhase,
+    matcher::{Matcher, MatcherConfig},
 };
 
 /// IO Module
@@ -20,14 +21,14 @@ pub mod io;
 const UPGRADE_WEBSOCKETS: &str = "websockets";
 const CONNECTION_UPGRADE: &str = "upgrade";
 
-/// Builder for handler path
-pub struct WebSocketHookBuilder<P, F> {
-    matcher: Option<Box<dyn Matcher>>,
+/// Builder for websocket hook configuration
+pub struct HookConfigBuilder<P, F> {
+    matcher: Option<Box<dyn MatcherConfig>>,
     factory: F,
     sub_proto: P,
 }
 
-impl<P, F> WebSocketHookBuilder<P, F>
+impl<P, F> HookConfigBuilder<P, F>
 where
     P: SubProtocol,
     F: WebSocketClientFactory,
@@ -39,7 +40,7 @@ where
     /// * `Self` - The builder.
     pub fn matcher<M>(mut self, matcher: M) -> Self
     where
-        M: Matcher + Send + Sync + 'static,
+        M: MatcherConfig + Send + Sync + 'static,
     {
         self.matcher = Some(Box::new(matcher));
         self
@@ -69,7 +70,7 @@ where
     ///
     /// * `Self` - The builder
     pub fn sub_proto(mut self, proto: P) -> Self {
-        self.sub_proto = proto.into();
+        self.sub_proto = proto;
         self
     }
 
@@ -78,22 +79,122 @@ where
     /// # Returns
     ///
     /// * `Result<HandlerHook, VetisError>` - The handler path or error
-    pub fn build(self) -> Result<WebSocketHook<P, F>, VetisError> {
-        Ok(WebSocketHook {
+    pub fn build(self) -> Result<HookConfig<P, F>, VetisError> {
+        Ok(HookConfig {
             matcher: self
                 .matcher
                 .map_or(None, |val| Some(val)),
-            factory: self.factory,
-            sub_proto: self.sub_proto,
+            factory: Some(self.factory),
+            sub_proto: Some(self.sub_proto),
         })
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+/// Hook config
+pub struct HookConfig<P, F> {
+    matcher: Option<Box<dyn MatcherConfig>>,
+    #[serde(skip)]
+    factory: Option<F>,
+    #[serde(skip)]
+    sub_proto: Option<P>,
+}
+
+impl<P, F> Clone for HookConfig<P, F>
+where
+    P: Clone + 'static,
+    F: Clone + 'static,
+{
+    fn clone(&self) -> Self {
+        HookConfig {
+            matcher: self.matcher.clone(),
+            factory: self.factory.clone(),
+            sub_proto: self
+                .sub_proto
+                .clone(),
+        }
+    }
+}
+
+impl<P, F> Default for HookConfig<P, F> {
+    fn default() -> Self {
+        HookConfig { matcher: None, factory: None, sub_proto: None }
+    }
+}
+
+#[typetag::serialize]
+impl<P, F> vetis::hook::HookConfig for HookConfig<P, F>
+where
+    P: SubProtocol + Default + Clone + Send + Sync + 'static,
+    F: WebSocketClientFactory + Default + Clone + 'static,
+    F::WebSocketClient:
+        WebSocketClient<WebSocket = WebSocket<TokioIo<Upgraded>, P>> + Send + 'static,
+{
+    fn matcher(&self) -> Option<&Box<dyn MatcherConfig>> {
+        self.matcher
+            .as_ref()
+    }
+
+    fn boxed_clone(&self) -> Box<dyn vetis::hook::HookConfig> {
+        Box::new(self.clone())
+    }
+
+    fn boxed_hook<'a>(&'a self) -> Box<dyn VetisHook> {
+        Box::new(WebSocketHook::new(self.clone()))
+    }
+
+    fn typetag_deserialize(&self) {
+        unimplemented!()
+    }
+}
+
+impl<P, F> HookConfig<P, F>
+where
+    P: SubProtocol + Default,
+    F: WebSocketClientFactory + Default,
+{
+    /// Allow create a new configuration for this hook.
+    ///
+    /// # Returns
+    ///
+    /// * `HookConfigBuilder` - The builder
+    pub fn builder() -> HookConfigBuilder<P, F> {
+        HookConfigBuilder { matcher: None, factory: F::default(), sub_proto: P::default().into() }
+    }
+
+    /// Allow set factory function
+    ///
+    /// # Arguments
+    ///
+    /// * `factory` - The factory function
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - The builder
+    pub fn factory(&self) -> Option<&F> {
+        self.factory
+            .as_ref()
+    }
+
+    /// Allow set sub proto
+    ///
+    /// # Arguments
+    ///
+    /// * `proto` - The subproto provider
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - The builder
+    pub fn sub_proto(&self) -> Option<&P> {
+        self.sub_proto
+            .as_ref()
     }
 }
 
 /// WebSocket path
 pub struct WebSocketHook<P, F> {
     matcher: Option<Box<dyn Matcher>>,
-    factory: F,
-    sub_proto: P,
+    config: HookConfig<P, F>,
 }
 
 unsafe impl<P, F> Send for WebSocketHook<P, F> {}
@@ -104,33 +205,37 @@ where
     P: SubProtocol + Default,
     F: WebSocketClientFactory + Default,
 {
-    /// Allow create a new handler path builder
-    ///
-    /// # Returns
-    ///
-    /// * `WebSocketHookBuilder` - The builder
-    pub fn builder() -> WebSocketHookBuilder<P, F> {
-        WebSocketHookBuilder {
-            matcher: None,
-            factory: F::default(),
-            sub_proto: P::default().into(),
-        }
+    /// Create a new websocket hook based on its configuration
+    pub fn new(config: HookConfig<P, F>) -> Self {
+        Self { matcher: None, config }
     }
 }
 
-impl<P, F> Hook for WebSocketHook<P, F>
+impl<P, F> vetis::hook::Hook for WebSocketHook<P, F>
 where
     P: SubProtocol + Clone + Send + 'static,
     F: WebSocketClientFactory + Default,
     F::WebSocketClient:
         WebSocketClient<WebSocket = WebSocket<TokioIo<Upgraded>, P>> + Send + 'static,
 {
+    fn setup<'a>(&'a mut self) -> VetisFutureResult<'a, ()> {
+        Box::pin(async move {
+            let matcher = if let Some(matcher_config) = &self.config.matcher {
+                Some(matcher_config.boxed_matcher())
+            } else {
+                None
+            };
+            self.matcher = matcher;
+            Ok(())
+        })
+    }
+
     fn has_matches(&self, context: &Context) -> bool {
         if let Some(matcher) = &self.matcher { matcher.is_match(context) } else { true }
     }
 
-    fn phases(&self) -> HookPhases {
-        HookPhases::new(HookPhase::Content)
+    fn phase(&self) -> HookPhase {
+        HookPhase::Content
     }
 
     fn matcher_mut(&mut self) -> Option<&mut Box<dyn Matcher>> {
@@ -144,11 +249,17 @@ where
         _response: Option<Response>,
     ) -> VetisFutureResult<'a, (Request, Option<Response>)> {
         let proto = self
+            .config
             .sub_proto
+            .as_ref()
+            .expect("Invalid protocol")
             .clone();
 
         let client = self
+            .config
             .factory
+            .as_ref()
+            .expect("Invalid factory")
             .create_client();
 
         let future = async move {

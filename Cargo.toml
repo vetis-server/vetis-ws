@@ -34,7 +34,9 @@ hyper-util = { version = "0.1.21", default-features = false, features = [
     "tokio",
 ] }
 pin-project-lite = "0.2.17"
+serde = "1.0.228"
 tokio = { version = "1.53.1", optional = true }
+typetag = "0.2.22"
 vetis = { path = "../vetis/vetis" }
 ws-framer = "0.4.0"
 
